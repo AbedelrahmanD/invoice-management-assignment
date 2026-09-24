@@ -1,0 +1,119 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using InvoiceManagement.Models
+@using InvoiceManagement.Services.Interfaces
+@using Microsoft.JSInterop
+@inject IInvoiceService InvoiceService
+@inject IJSRuntime JS
+
+<PageTitle>Invoices</PageTitle>
+
+<div class="container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0 fw-bold">Invoices</h3>
+        <a href="/invoice/create" class="btn btn-primary">New Invoice</a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card">
+        <div class="card-body p-0">
+            @if (loading)
+            {
+                <div class="p-5 text-center text-muted">Loading...</div>
+            }
+            else if (invoices.Count == 0)
+            {
+                <div class="p-5 text-center text-muted">No invoices yet.</div>
+            }
+            else
+            {
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-end">Number</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in invoices)
+                        {
+                            <tr @key="invoice.Id">
+                                <td class="text-end fw-semibold">#@invoice.Number</td>
+                                <td>@invoice.CustomerName</td>
+                                <td>@invoice.Date.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end fw-semibold">@invoice.TotalAmount.ToString("C")</td>
+                                <td class="text-end">
+                                    <div class="d-flex gap-2 justify-content-end">
+                                        <a href="@($"/invoice/edit/{invoice.Id}")" class="btn btn-sm btn-outline-primary">
+                                            Edit
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => Delete(invoice)">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Invoice> invoices = new();
+    private bool loading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            invoices = await InvoiceService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load invoices: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task Delete(Invoice invoice)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Delete invoice #{invoice.Number} for {invoice.CustomerName}?");
+
+        if (!confirmed) return;
+
+        try
+        {
+            await InvoiceService.DeleteAsync(invoice.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Delete failed: {ex.Message}";
+        }
+    }
+}
