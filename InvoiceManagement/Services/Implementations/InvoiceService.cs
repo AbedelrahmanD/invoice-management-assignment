@@ -11,7 +11,7 @@ namespace InvoiceManagement.Services.Implementations
         public async Task<List<Invoice>> GetAllAsync()
         {
             await using var context = await contextFactory.CreateDbContextAsync();
-            
+
             return await context.Invoices
                 .AsNoTracking()
                 .Include(invoice => invoice.Items)
@@ -48,24 +48,14 @@ namespace InvoiceManagement.Services.Implementations
             }
 
             await using var context = await contextFactory.CreateDbContextAsync();
-            await using var transaction = await context.Database.BeginTransactionAsync();
 
-            try
-            {
-                invoice.Number = await GetNextInvoiceNumberInternalAsync(context);
-                invoice.TotalAmount = invoice.Items.Sum(item => item.Quantity * item.Price);
+            invoice.Number = await GetNextInvoiceNumberInternalAsync(context);
+            invoice.TotalAmount = invoice.Items.Sum(item => item.Quantity * item.Price);
 
-                context.Invoices.Add(invoice);
-                await context.SaveChangesAsync();
+            context.Invoices.Add(invoice);
+            await context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
-                return invoice;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return invoice;
         }
 
         public async Task UpdateAsync(Invoice invoice)
@@ -109,7 +99,7 @@ namespace InvoiceManagement.Services.Implementations
             await using var context = await contextFactory.CreateDbContextAsync();
 
             var existingInvoice = await context.Invoices.FindAsync(id);
-         
+
             if (existingInvoice == null)
             {
                 return;
