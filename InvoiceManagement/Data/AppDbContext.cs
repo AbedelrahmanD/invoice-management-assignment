@@ -13,11 +13,16 @@ namespace InvoiceManagement.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Invoice>()
-                .HasMany(invoice => invoice.Items)
-                .WithOne()
-                .HasForeignKey(item => item.InvoiceId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Invoice>(entity =>
+            {
+                entity.HasIndex(invoice => invoice.Number)
+                     .IsUnique();
+
+                entity.HasMany(invoice => invoice.Items)
+                     .WithOne()
+                     .HasForeignKey(item => item.InvoiceId)
+                     .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }

@@ -11,6 +11,7 @@ namespace InvoiceManagement.Services.Implementations
         public async Task<List<Invoice>> GetAllAsync()
         {
             await using var context = await contextFactory.CreateDbContextAsync();
+            
             return await context.Invoices
                 .AsNoTracking()
                 .Include(invoice => invoice.Items)
@@ -75,6 +76,7 @@ namespace InvoiceManagement.Services.Implementations
             }
 
             await using var context = await contextFactory.CreateDbContextAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync();
 
             var existingInvoice = await context.Invoices
                 .Include(invoiceEntity => invoiceEntity.Items)
@@ -89,31 +91,30 @@ namespace InvoiceManagement.Services.Implementations
             existingInvoice.Date = invoice.Date;
             existingInvoice.TotalAmount = invoice.Items.Sum(item => item.Quantity * item.Price);
 
-            var oldInvoiceItems = existingInvoice.Items.ToList();
-            context.InvoiceItems.RemoveRange(oldInvoiceItems);
-            existingInvoice.Items.Clear();
+            context.InvoiceItems.RemoveRange(existingInvoice.Items);
 
-            foreach (var item in invoice.Items)
+            existingInvoice.Items = invoice.Items.Select(item => new InvoiceItem
             {
-                existingInvoice.Items.Add(new InvoiceItem
-                {
-                    Name = item.Name,
-                    Price = item.Price,
-                    Quantity = item.Quantity
-                });
-            }
+                Name = item.Name,
+                Price = item.Price,
+                Quantity = item.Quantity
+            }).ToList();
 
             await context.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
             await using var context = await contextFactory.CreateDbContextAsync();
+
             var existingInvoice = await context.Invoices.FindAsync(id);
+         
             if (existingInvoice == null)
             {
                 return;
             }
+
             context.Invoices.Remove(existingInvoice);
             await context.SaveChangesAsync();
         }
