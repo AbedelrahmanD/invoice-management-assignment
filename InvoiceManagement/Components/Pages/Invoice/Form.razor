@@ -1,22 +1,16 @@
 ﻿@page "/invoice/create"
 @page "/invoice/edit/{Id:int}"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using InvoiceManagement.Models
 @using InvoiceManagement.Services.Interfaces
+@using Microsoft.JSInterop
 @inject IInvoiceService InvoiceService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <PageTitle>@pageTitle</PageTitle>
 
 <div class="container">
-
-    @if (!string.IsNullOrEmpty(successMessage))
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @successMessage
-            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty" aria-label="Close"></button>
-        </div>
-    }
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
@@ -27,11 +21,15 @@
     }
 
     <div class="card">
-        <div class="card-header bg-white py-3">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
             <h4 class="mb-0 fw-bold">
                 @pageTitle
                 <span class="text-success">#@displayInvoiceNumber</span>
             </h4>
+            <a href="/" class="btn btn-light border  @(isSubmitting ? "disabled" : "")">
+                <i class="bi bi-arrow-left"></i>
+                Back to List
+            </a>
         </div>
 
         <div class="card-body p-4">
@@ -40,17 +38,13 @@
 
                 <div class="row g-3 mb-4">
                     <div class="col-md-6 col-lg-4">
-                        <label class="form-label required">
-                            Customer name
-                        </label>
+                        <label class="form-label required">Customer name</label>
                         <InputText class="form-control" @bind-Value="invoice.CustomerName" placeholder="e.g. Acme Corp" />
                         <ValidationMessage For="() => invoice.CustomerName" />
                     </div>
                     <div class="col-md-6 col-lg-4">
-                        <label class="form-label required">
-                            Date
-                        </label>
-                        <InputDate class="form-control" @bind-Value="invoice.Date" />
+                        <label class="form-label required">Date</label>
+                        <InputDate class="form-control" style="width: 150px;" @bind-Value="invoice.Date" />
                         <ValidationMessage For="() => invoice.Date" />
                     </div>
                 </div>
@@ -62,11 +56,8 @@
                         Line Items
                         <span class="badge text-bg-secondary rounded-pill ms-2">@invoice.Items.Count</span>
                     </h5>
-                    <button type="button" class="btn btn-sm btn-success" @onclick="AddLine">
-                        <svg xmlns="http://w3.org" width="14" height="14" viewBox="0 0 1024 1024" class="me-1">
-                            <path fill="currentColor" d="M482 152h60q8 0 8 8v704q0 8-8 8h-60q-8 0-8-8V160q0-8 8-8" />
-                            <path fill="currentColor" d="M192 474h672q8 0 8 8v60q0 8-8 8H160q-8 0-8-8v-60q0-8 8-8Z" />
-                        </svg>
+                    <button type="button" class="btn btn-success" @onclick="AddLine" disabled="@isSubmitting">
+                        <i class="bi bi-plus-lg"></i>
                         Add Line
                     </button>
                 </div>
@@ -80,7 +71,7 @@
                 else
                 {
                     <div class="table-responsive overflow-auto" style="height: 250px;">
-                        <table class="table align-middle mb-3">
+                        <table class="table table-hover align-middle mb-3">
                             <thead class="table-light position-sticky top-0" style="z-index: 1;">
                                 <tr>
                                     <th class="required" style="width: 40%">Name</th>
@@ -98,7 +89,7 @@
 
                                     <tr @key="invoiceItem">
                                         <td>
-                                            <InputText class="form-control form-control-sm" @bind-Value="invoice.Items[index].Name" placeholder="Item name" />
+                                            <InputText class="form-control form-control-sm" @bind-Value="invoice.Items[index].Name" placeholder="Name" />
                                             <ValidationMessage For="() => invoice.Items[index].Name" />
                                         </td>
                                         <td>
@@ -113,13 +104,11 @@
                                             <ValidationMessage For="() => invoice.Items[index].Price" />
                                         </td>
                                         <td class="text-end fw-semibold text-nowrap">
-                                            @invoiceItem.LineTotal.ToString("C")
+                                            @invoiceItem.LineTotal.ToString("C") 
                                         </td>
                                         <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLine(index)">
-                                                <svg xmlns="http://w3.org" width="14" height="14" viewBox="0 0 32 32">
-                                                    <path fill="currentColor" d="M17.414 16L24 9.414L22.586 8L16 14.586L9.414 8L8 9.414L14.586 16L8 22.586L9.414 24L16 17.414L22.586 24L24 22.586z" />
-                                                </svg>
+                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveLine(index)" disabled="@isSubmitting">
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -138,22 +127,10 @@
                     <div>
                         @if (Id.HasValue)
                         {
-                            if (confirmingDelete)
-                            {
-                                <span class="text-danger me-2">Delete this invoice?</span>
-                                <button type="button" class="btn btn-danger" @onclick="HandleDelete" disabled="@isSubmitting">
-                                    Yes, delete
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary" @onclick="() => confirmingDelete = false" disabled="@isSubmitting">
-                                    Cancel
-                                </button>
-                            }
-                            else
-                            {
-                                <button type="button" class="btn btn-danger" @onclick="() => confirmingDelete = true" disabled="@isSubmitting">
-                                    Delete
-                                </button>
-                            }
+                            <button type="button" class="btn btn-danger" @onclick="HandleDelete" disabled="@isSubmitting">
+                                <i class="bi bi-trash"></i>
+                                Delete
+                            </button>
                         }
                     </div>
                     <div class="d-flex gap-2">
@@ -162,13 +139,10 @@
                             {
                                 <span>Saving...</span>
                             }
-                            else if (Id.HasValue)
-                            {
-                                <text>Update</text>
-                            }
                             else
                             {
-                                <text>Create</text>
+                                <i class="bi bi-check-lg me-1"></i>
+                                @(Id.HasValue ? "Update" : "Create")
                             }
                         </button>
                     </div>
@@ -185,12 +159,8 @@
     private string pageTitle = string.Empty;
     private int displayInvoiceNumber;
     private Invoice invoice = new() { Items = new List<InvoiceItem>() };
-
-    private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
-
     private bool isSubmitting;
-    private bool confirmingDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -224,20 +194,17 @@
 
     protected void RemoveLine(int index)
     {
-        if (index >= 0 && index < invoice.Items.Count)
-        {
-            invoice.Items.RemoveAt(index);
-        }
+
+        invoice.Items.RemoveAt(index);
+
     }
 
     private async Task HandleValidSubmit()
     {
         if (isSubmitting) return;
-
         isSubmitting = true;
-        successMessage = string.Empty;
         errorMessage = string.Empty;
-
+        
         try
         {
             if (Id.HasValue)
@@ -267,20 +234,23 @@
 
     private async Task HandleDelete()
     {
-        if (!Id.HasValue || isSubmitting) return;
+        if (isSubmitting) return;
+         
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Delete invoice #{invoice.Number} for {invoice.CustomerName}?");
 
+        if (!confirmed) return;
         isSubmitting = true;
         errorMessage = string.Empty;
-
+ 
         try
         {
-            await InvoiceService.DeleteAsync(Id.Value);
+            await InvoiceService.DeleteAsync(Id!.Value);
             NavigationManager.NavigateTo("/");
         }
         catch (Exception exception)
         {
             errorMessage = $"An error occurred while deleting the invoice: {exception.Message}";
-            confirmingDelete = false;
         }
         finally
         {

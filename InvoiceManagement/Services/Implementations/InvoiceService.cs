@@ -19,6 +19,7 @@ namespace InvoiceManagement.Services.Implementations
             await using var context = await _contextFactory.CreateDbContextAsync();
             return await context.Invoices
                 .AsNoTracking()
+                .Include(invoice => invoice.Items)
                 .OrderByDescending(invoice => invoice.Number)
                 .ToListAsync();
         }
@@ -30,7 +31,7 @@ namespace InvoiceManagement.Services.Implementations
 
         private async Task<int> GetNextInvoiceNumberInternalAsync(AppDbContext context)
         {
-            var maxNumber = await context.Invoices.MaxAsync(invoiceEntity => (int?)invoiceEntity.Number) ?? 0;
+            var maxNumber = await context.Invoices.MaxAsync(invoiceEntity => (int?)invoiceEntity.Number) ?? 100;
             return maxNumber + 1;
         }
 
