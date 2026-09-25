@@ -2,10 +2,12 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using InvoiceManagement.Models
 @using InvoiceManagement.Services.Interfaces
+@using InvoiceManagement.Services.Implementations
 @using Microsoft.JSInterop
 @inject IInvoiceService InvoiceService
 @inject IJSRuntime JS
 @inject ILogger<List> Logger
+@inject FlashMessageService FlashMessageService
 
 <PageTitle>Invoices</PageTitle>
 
@@ -121,7 +123,18 @@
 
     protected override async Task OnInitializedAsync()
     {
+
         await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && FlashMessageService.Has("FormSubmitted"))
+        {
+            var message = FlashMessageService.Get("FormSubmitted");
+
+            await JS.InvokeVoidAsync("toast", message);
+        }
     }
 
     private async Task LoadAsync()
@@ -157,6 +170,7 @@
         {
             await InvoiceService.DeleteAsync(invoice.Id);
             await LoadAsync();
+            await JS.InvokeVoidAsync("toast", "Invoice deleted successfully.");
         }
         catch (Exception ex)
         {

@@ -3,11 +3,13 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using InvoiceManagement.Models
 @using InvoiceManagement.Services.Interfaces
+@using InvoiceManagement.Services.Implementations
 @using Microsoft.JSInterop
 @inject IInvoiceService InvoiceService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @inject ILogger<Form> Logger
+@inject FlashMessageService FlashMessageService
 
 <PageTitle>@pageTitle</PageTitle>
 
@@ -245,6 +247,7 @@
                 await InvoiceService.SaveAsync(invoice);
             }
 
+            FlashMessageService.Set("FormSubmitted", "Invoice saved successfully.");
             NavigationManager.NavigateTo("/");
         }
         catch (InvalidOperationException exception)
@@ -280,6 +283,8 @@
         try
         {
             await InvoiceService.DeleteAsync(Id!.Value);
+
+            FlashMessageService.Set("FormSubmitted", "Invoice deleted successfully.");
             NavigationManager.NavigateTo("/");
         }
         catch (Exception exception)

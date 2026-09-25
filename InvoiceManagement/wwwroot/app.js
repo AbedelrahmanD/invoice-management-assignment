@@ -15,3 +15,13 @@ window.confirmDelete = async function (message) {
     return result.isConfirmed === true;
 
 };
+
+window.toast = async function (message, icon = 'success') {
+    await Swal.fire({
+        position: "center",
+        icon: icon,
+        title: message,
+        showConfirmButton: false,
+        timer: 1500
+    });
+};
