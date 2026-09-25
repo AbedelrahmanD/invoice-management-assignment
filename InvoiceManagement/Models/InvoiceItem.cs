@@ -8,7 +8,7 @@ namespace InvoiceManagement.Models
         public int Id { get; set; }
 
         [Required(ErrorMessage = "Required")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
 
         [Range(1, int.MaxValue, ErrorMessage = "Must be at least 1")]
         public int Quantity { get; set; }

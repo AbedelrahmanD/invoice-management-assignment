@@ -5,6 +5,7 @@
 @using Microsoft.JSInterop
 @inject IInvoiceService InvoiceService
 @inject IJSRuntime JS
+@inject ILogger<List> Logger
 
 <PageTitle>Invoices</PageTitle>
 
@@ -14,96 +15,109 @@
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty" aria-label="Close"></button>
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"
+                    aria-label="Close"></button>
         </div>
     }
 
     <div class="card">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h4 class="mb-0 fw-bold">Invoices</h4>
+            <div class="d-flex align-items-center gap-2">
+                <h4 class="mb-0 fw-bold d-flex align-items-center">
+                    Invoices
+                </h4>
+                @if (isLoading)
+                {
+                    <div class="spinner spinner-grow spinner-grow-sm ms-2"></div>
+
+                }
+            </div>
             <a href="/invoice/create" class="btn btn-primary">
-<i class="bi bi-plus-lg"></i>                New
+                <i class="bi bi-plus-lg"></i> New
             </a>
         </div>
         <div class="card-body p-0">
-            @if (loading)
-            {
-               <div class="d-flex justify-content-center align-items-center p-4">
-                   <div class="spinner spinner-border"></div>
-               </div>
-            }
-            else if (invoices.Count == 0)
-            {
-                <div class="p-5 text-center text-muted">No invoices yet.</div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
+            
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:50px">#</th>
+
+                            <th style="width:100px">Number</th>
+                            <th style="width: 150px">Date</th>
+
+                            <th>Customer</th>
+                            <th style="width: 150px">Items</th>
+
+                            <th style="width: 15%">Amount</th>
+                            <th style="width: 20%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (invoices.Count == 0 && !isLoading)
+                        {
                             <tr>
-                                                                <th style="width:50px">#</th>
-
-                                <th style="width:100px">Number</th>
-                                                                <th style="width: 150px">Date</th>
-
-                                <th>Customer</th>
-                                                                <th  style="width: 150px">Items</th>
-
-                                <th  style="width: 15%">Amount</th>
-                                <th  style="width: 20%"></th>
+                                <td colspan="99">
+                                    <div class="p-5 text-center text-muted">No invoices yet.</div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                           @for (int i = 0; i < invoices.Count; i++)
-{
-     var invoice = invoices[i]; 
-    var rowNumber = i + 1;
+                        }
+                        else
+                        {
+                            @for (int i = 0; i < invoices.Count; i++)
+                            {
+                                var invoice = invoices[i];
+                                var rowNumber = i + 1;
 
                                 <tr @key="invoice.Id">
-                                                                        <td class="fw-semibold bg-light">
-@rowNumber                                                                        </td>
+                                    <td class="fw-semibold bg-light">
+                                        @rowNumber </td>
 
-                                    <td class="fw-semibold">@invoice.Number</td>
-                                                                        <td>@invoice.Date.ToString("dd/MM/yyyy")</td>
+                                        <td class="fw-semibold">@invoice.Number</td>
+                                        <td>@invoice.Date.ToString("dd/MM/yyyy")</td>
 
-                                    <td>@invoice.CustomerName</td>
-                                                                        <td >
-                                                                            <div class="badge badge-sm bg-info">
-                                                                                 @invoice.Items.Count
-                                                                            </div>
-                                                                        </td>
+                                        <td>@invoice.CustomerName</td>
+                                        <td>
+                                            <div class="badge badge-sm bg-info">
+                                                @invoice.Items.Count
+                                            </div>
+                                        </td>
 
-                                    <td class="fw-semibold">@invoice.TotalAmount.ToString("C")
-                                    
-                                   
-                                    </td>
-                                    <td class="text-end">
-                                        <div class="d-flex justify-content-end">
-                                            <a href="@($"/invoice/edit/{invoice.Id}")" class="btn btn-warning rounded-end-0">
-                                                <i class="bi bi-pen"></i> 
-                                            </a>
-                                            <button type="button" class="btn btn-danger rounded-start-0"
-                                                    @onclick="() => Delete(invoice)">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                        <td class="fw-semibold">@invoice.TotalAmount.ToString("C")
+
+
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="d-flex justify-content-end">
+                                                <a href="@($"/invoice/edit/{invoice.Id}")"
+                                                   class="btn btn-warning rounded-end-0 @(isLoading ? "disabled" : "")">
+                                                    <i class="bi bi-pen"></i>
+                                                </a>
+                                                <button type="button"
+                                                        class="btn btn-danger rounded-start-0 @(isLoading ? "disabled" : "")"
+                                                        @onclick="() => Delete(invoice)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
                             }
                         </tbody>
                     </table>
                 </div>
-            }
+            
+            </div>
         </div>
     </div>
-</div>
 
 @code {
-    
-    public List<Invoice> invoices { get; set; } = new();
-    private bool loading;
-    private string errorMessage = string.Empty;
+
+    private List<Invoice> invoices = new();
+    private bool isLoading = false;
+    private string errorMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,31 +126,33 @@
 
     private async Task LoadAsync()
     {
-        
-        loading = true;
+
+        isLoading = true;
         errorMessage = string.Empty;
-        await Task.Delay(3000);
+        StateHasChanged();
+
         try
         {
             invoices = await InvoiceService.GetAllAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Failed to load invoices: {ex.Message}";
+            errorMessage = "Failed to load invoices";
+            Logger.LogError(ex, "Failed to load invoices");
         }
         finally
         {
-            loading = false;
+            isLoading = false;
         }
     }
 
     private async Task Delete(Invoice invoice)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"Delete invoice #{invoice.Number} for {invoice.CustomerName}?");
+        var confirmed = await JS.InvokeAsync<bool>("confirmDelete",
+    $"Delete invoice <b>#{invoice.Number}</b> for <b>{invoice.CustomerName}</b>?");
 
         if (!confirmed) return;
-
+       
         try
         {
             await InvoiceService.DeleteAsync(invoice.Id);
@@ -144,7 +160,8 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Delete failed: {ex.Message}";
+            errorMessage = "Delete failed";
+            Logger.LogError(ex, "Failed to delete invoice {InvoiceId}", invoice?.Id);
         }
     }
 }

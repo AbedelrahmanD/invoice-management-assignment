@@ -7,6 +7,7 @@
 @inject IInvoiceService InvoiceService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject ILogger<Form> Logger
 
 <PageTitle>@pageTitle</PageTitle>
 
@@ -16,7 +17,8 @@
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty" aria-label="Close"></button>
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"
+                    aria-label="Close"></button>
         </div>
     }
 
@@ -39,7 +41,8 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-6 col-lg-4">
                         <label class="form-label required">Customer name</label>
-                        <InputText class="form-control" @bind-Value="invoice.CustomerName" placeholder="e.g. Acme Corp" />
+                        <InputText class="form-control" @bind-Value="invoice.CustomerName"
+                                   placeholder="e.g. Acme Corp" />
                         <ValidationMessage For="() => invoice.CustomerName" />
                     </div>
                     <div class="col-md-6 col-lg-4">
@@ -64,7 +67,8 @@
 
                 @if (invoice.Items.Count == 0)
                 {
-                    <div style="height: 250px;" class="alert alert-light border text-center text-muted mb-3 d-flex justify-content-center align-items-center">
+                    <div style="height: 250px;"
+                         class="alert alert-light border text-center text-muted mb-3 d-flex justify-content-center align-items-center">
                         No line items yet.
                     </div>
                 }
@@ -89,25 +93,30 @@
 
                                     <tr @key="invoiceItem">
                                         <td>
-                                            <InputText class="form-control form-control-sm" @bind-Value="invoice.Items[index].Name" placeholder="Name" />
+                                            <InputText class="form-control form-control-sm"
+                                                       @bind-Value="invoice.Items[index].Name" placeholder="Name" />
                                             <ValidationMessage For="() => invoice.Items[index].Name" />
                                         </td>
                                         <td>
-                                            <InputNumber ParsingErrorMessage="Must be a number" class="form-control form-control-sm" @bind-Value="invoice.Items[index].Quantity" />
+                                            <InputNumber ParsingErrorMessage="Must be a number"
+                                                         class="form-control form-control-sm"
+                                                         @bind-Value="invoice.Items[index].Quantity" />
                                             <ValidationMessage For="() => invoice.Items[index].Quantity" />
                                         </td>
                                         <td>
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text">$</span>
-                                                <InputNumber ParsingErrorMessage="Must be a number" class="form-control" @bind-Value="invoice.Items[index].Price" />
+                                                <InputNumber ParsingErrorMessage="Must be a number" class="form-control"
+                                                             @bind-Value="invoice.Items[index].Price" />
                                             </div>
                                             <ValidationMessage For="() => invoice.Items[index].Price" />
                                         </td>
                                         <td class="text-end fw-semibold text-nowrap">
-                                            @invoiceItem.LineTotal.ToString("C") 
+                                            @invoiceItem.LineTotal.ToString("C")
                                         </td>
                                         <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveLine(index)" disabled="@isSubmitting">
+                                            <button type="button" class="btn btn-sm btn-danger"
+                                                    @onclick="() => RemoveLine(index)" disabled="@isSubmitting">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
@@ -117,7 +126,8 @@
                         </table>
                     </div>
 
-                    <div class="d-flex justify-content-end align-items-center bg-light border border-top-0 rounded-bottom px-3 py-2 mb-3">
+                    <div
+                        class="d-flex justify-content-end align-items-center bg-light border border-top-0 rounded-bottom px-3 py-2 mb-3">
                         <span class="fw-bold me-3">Total:</span>
                         <span class="fw-bold fs-5">@invoice.Items.Sum(x => x.LineTotal).ToString("C")</span>
                     </div>
@@ -128,22 +138,35 @@
                         @if (Id.HasValue)
                         {
                             <button type="button" class="btn btn-danger" @onclick="HandleDelete" disabled="@isSubmitting">
-                                <i class="bi bi-trash"></i>
+                                @if (isDeleting)
+                                {
+                                    <span class="spinner-border spinner-border-sm"> </span>
+
+                                }
+                                else
+                                {
+                                    <i class="bi bi-trash"></i>
+                                }
                                 Delete
                             </button>
                         }
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary px-4" disabled="@isSubmitting">
-                            @if (isSubmitting)
+                                
+                            @if (isSaving)
                             {
-                                <span>Saving...</span>
+                                <span class="spinner-border spinner-border-sm me-1"> </span>
+
                             }
                             else
                             {
                                 <i class="bi bi-check-lg me-1"></i>
-                                @(Id.HasValue ? "Update" : "Create")
+
                             }
+
+                            @(Id.HasValue ? "Update" : "Create")
+                           
                         </button>
                     </div>
                 </div>
@@ -160,7 +183,10 @@
     private int displayInvoiceNumber;
     private Invoice invoice = new() { Items = new List<InvoiceItem>() };
     private string errorMessage = string.Empty;
-    private bool isSubmitting;
+    private bool isSubmitting = false;
+    private bool isSaving = false;
+    private bool isDeleting = false;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -188,6 +214,7 @@
 
     protected void AddLine()
     {
+
         invoice.Items.Add(new InvoiceItem());
         errorMessage = string.Empty;
     }
@@ -202,9 +229,11 @@
     private async Task HandleValidSubmit()
     {
         if (isSubmitting) return;
+
         isSubmitting = true;
+        isSaving = true;
         errorMessage = string.Empty;
-        
+ 
         try
         {
             if (Id.HasValue)
@@ -224,24 +253,29 @@
         }
         catch (Exception exception)
         {
-            errorMessage = $"An unexpected system error occurred: {exception.Message}";
+            errorMessage = "An unexpected system error occurred";
+            Logger.LogError(exception, "Failed to save invoice {InvoiceId}", invoice?.Id);
         }
         finally
         {
             isSubmitting = false;
+            isSaving = false;
         }
     }
 
     private async Task HandleDelete()
     {
         if (isSubmitting) return;
-         
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"Delete invoice #{invoice.Number} for {invoice.CustomerName}?");
+
+        var confirmed = await JS.InvokeAsync<bool>("confirmDelete",
+            $"Delete invoice <b>#{invoice.Number}</b> for <b>{invoice.CustomerName}</b>?");
 
         if (!confirmed) return;
+
         isSubmitting = true;
+        isDeleting = true;
         errorMessage = string.Empty;
+        StateHasChanged();
  
         try
         {
@@ -250,11 +284,15 @@
         }
         catch (Exception exception)
         {
-            errorMessage = $"An error occurred while deleting the invoice: {exception.Message}";
+            errorMessage = "An error occurred while deleting the invoice";
+            Logger.LogError(exception, "Failed to delete invoice {InvoiceId}", Id);
         }
         finally
         {
+
             isSubmitting = false;
+            isDeleting = false;
+
         }
     }
 }
