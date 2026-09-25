@@ -8,7 +8,7 @@
         
         public void Set(string key, string message)
         {
-            _flashStore.Add(key, message);
+            _flashStore[key]=message;
          }
 
         
